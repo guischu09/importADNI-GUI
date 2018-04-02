@@ -1,3 +1,3 @@
 # importADNI-GUI
 
-Implementation of GUI to import ADNI data.
+Implementation of a GUI to import ADNI data.
