@@ -9,10 +9,17 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
+################## GUilherme #####################
+from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QAction, QTableWidget,QTableWidgetItem,QVBoxLayout
+from importADNI_develop import treat_dialog_text, get_corresponding_labels, deal_missing_data
+import pandas as pd
+################## GUilherme END #####################
+
 from PyQt5.QtCore import QCoreApplication
 import menu as m
 from scraperADNI import ScraperADNI as Sa
-from importADNI_develop import treat_dialog_text, get_corresponding_labels, deal_missing_data
+
+
 
 ########################################################################
 # To-do: 
@@ -21,12 +28,9 @@ from importADNI_develop import treat_dialog_text, get_corresponding_labels, deal
 #
 
 
-#########################################################
-################## GUilherme
+################## GUilherme #################################### GUilherme ##################
 
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QAction, QTableWidget,QTableWidgetItem,QVBoxLayout
-
+# Select Features Window
 class Ui_featureWindow(object):
     def setupUi(self, featureWindow):
         featureWindow.setObjectName("featureWindow")
@@ -37,14 +41,12 @@ class Ui_featureWindow(object):
         self.tableFeatures.setObjectName("tableFeatures")
        
         ############################# IMPORTANT ####################################
-         
+        
+        # Write to table desired labels and corresponding matches
+        
         self.tableFeatures.setColumnCount(self.NcolsTable(desired_labels))
         self.tableFeatures.setRowCount(self.NrowsTable(match)+1)  
-        
-#            print('yes')
-        
-        
-        
+      
         ## Escrever os cabeçarios:        
         for uu in range(self.NcolsTable(desired_labels)):
             self.tableFeatures.setItem(0,uu, QTableWidgetItem(desired_labels[uu]))
@@ -53,15 +55,9 @@ class Ui_featureWindow(object):
         for uu in range(self.NcolsTable(desired_labels)):           
             for vv in range(len(match[uu])):
                 self.tableFeatures.setItem(vv+1,uu, QTableWidgetItem(match[uu][vv]))
-        
-        
-
-#        print(self.tableFeatures.cellClicked)
-#        print(self.tableFeatures.setItemSelected)
-                
+                            
         ############################# IMPORTANT ####################################
-         
- 
+          
         self.selectFeatButton = QtWidgets.QPushButton(featureWindow)
         self.selectFeatButton.setGeometry(QtCore.QRect(770, 340, 81, 22))
         self.selectFeatButton.setObjectName("selectFeatButton")
@@ -83,27 +79,39 @@ class Ui_featureWindow(object):
          
         
         #####################################################
-   
+    # WARNING: This function edits/uses global variables: desired_labels   
     def NcolsTable(self,desired_labels):
         return len(desired_labels)
         
+    # WARNING: This function edits/uses global variables: match
     def NrowsTable(self,match):
         return len(max(match,key=len)) 
     
     def functions(self):
         self.selectFeatButton.clicked.connect(self.selectData)
-            
+        self.selectFeatButton.clicked.connect(self.dataFromSelectedFeatures)
+        
+    # WARNING: This function edits/uses global variables: selectedFeatures            
     def selectData(self):
+        global selectedFeatures
         items = self.tableFeatures.selectedItems()
         selectedFeatures=[None]*len(items) 
         for i in range(len(items)):
             selectedFeatures[i] = str(self.tableFeatures.selectedItems()[i].text())
             
-        print(selectedFeatures)
+#        print(selectedFeatures)
         return selectedFeatures
-################## GUilherme################## GUilherme
-#
-########################################################################
+    
+     # WARNING: This function edits/uses global variables: selectedFeatures
+    def dataFromSelectedFeatures(self):
+        global DataSet  
+        DataSet = DataSet.loc[:,selectedFeatures]
+        print(DataSet)
+        
+        return(DataSet)
+    
+ ################## GUilherme End #################################### GUilherme End ##################
+
 
 fileTempNames = []
 fileCSVName = None
@@ -412,21 +420,72 @@ class Ui_MainWindow(object):
         if fileName:
             print(fileName)
         
-        ################## GUilherme################## GUilherme
+############################# GUilherme #################################### GUilherme ##################
+# WARNING: This function edits/uses global variables: fileCSVName, desired_labels, match
     def check_matches(self):
-        global desired_labels, match
+        global desired_labels, match, DataSet
         desired_labels = str(self.lineDesiredFeatures.text())              
         desired_labels = treat_dialog_text(desired_labels)
-        possible_labels = ['PTAU_UPENNBIOMK9_04_19_17','TAU_UPENNBIOMK9_04_19_17','RID_UPENNBIOMK9_04_19_17','ABETA_UPENNBIOMK9_04_19_17']
+        
+        DataSet = pd.read_csv(fileCSVName)
+        possible_labels = list(DataSet.columns)
+        
+#        possible_labels = ['PTAU_UPENNBIOMK9_04_19_17','TAU_UPENNBIOMK9_04_19_17','RID_UPENNBIOMK9_04_19_17','ABETA_UPENNBIOMK9_04_19_17']
         match =[None]*len(desired_labels)  
          
         for idx in range(len(desired_labels)):
             input_label = desired_labels[idx]      
             match[idx] = get_corresponding_labels(input_label,possible_labels)
-        
+        print(match)
 
         return (desired_labels,match)
-    ################## GUilherme################## GUilherme################## GUilherme
+    
+
+        
+#        def 
+        
+        
+        
+        #####
+#         def buttonConfirmDownloadPressed(self):
+#        selected_data = self.listData.currentItem()
+#        
+#        if selected_data != None:
+#            selected_data = selected_data.text()
+#            if self.confirmationFromWebWindow() == True:
+#                self.setStatus("Downloading...")
+#                x = os.getcwd() + "/"
+#                x += self.sa.getData(self.data_dict[selected_data], selected_data)
+#                
+#                global flagTempFiles
+#                flagTempFiles = True
+#                
+#                global fileTempNames
+#                fileTempNames.append(str(x))
+#                
+#                global fileCSVName
+#                fileCSVName = str(x)
+#                
+#                ui.fileLoaded()
+#                self.sa.close()
+#                self.d.close()
+#    
+#    # Open a confirmation box and return its value
+#    def confirmationFromWebWindow(self):
+#        msg = QMessageBox()
+#        msg.setIcon(QMessageBox.Information)
+#    
+#        msg.setText("Sure?")
+#        msg.setWindowTitle("Confirmation Box")
+#        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+#    	
+#        retval = msg.exec_()
+#        
+#        if retval == 1024:
+#            return True
+#        else:
+#            return False
+################## GUilherme End ################## GUilherme End ################## GUilherme End 
     
     # Enable options/buttons on main window 
     # WARNING: This function edits/uses global variables: flagFileLoaded
