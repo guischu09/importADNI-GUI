@@ -9,30 +9,29 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
-################## GUilherme #####################
 from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QAction, QTableWidget,QTableWidgetItem,QVBoxLayout
 from importADNI_develop import treat_dialog_text, get_corresponding_labels, deal_missing_data
 import pandas as pd
-################## GUilherme END #####################
-
 from PyQt5.QtCore import QCoreApplication
 import menu as m
 from scraperADNI import ScraperADNI as Sa
 
-
+fileTempNames = []
+fileCSVName = None
+flagFileLoaded = False
+flagTempFiles = False
+DataSet = None
+NewDataSet = None
+DataSetDealt = None
 
 ########################################################################
 # To-do: 
 #   - Fechar ambas janelas quando fechar a principal
-#   - Implementar código Schu para devolver colunas
 #
 
-
-################## GUilherme #################################### GUilherme ##################
-
-# Select Features Window
+######################################### Features Window ########################################
 class Ui_featureWindow(object):
-    def setupUi(self, featureWindow):
+    def setupUi(self, featureWindow, lineDesiredFeatures):
         featureWindow.setObjectName("featureWindow")
         featureWindow.resize(897, 375)
          
@@ -40,33 +39,37 @@ class Ui_featureWindow(object):
         self.tableFeatures.setGeometry(QtCore.QRect(50, 30, 801, 301))
         self.tableFeatures.setObjectName("tableFeatures")
        
-        ############################# IMPORTANT ####################################
+        self.lineDesiredFeatures = lineDesiredFeatures
         
         # Write to table desired labels and corresponding matches
+        self.check_matches()
         
-        self.tableFeatures.setColumnCount(self.NcolsTable(desired_labels))
-        self.tableFeatures.setRowCount(self.NrowsTable(match)+1)  
+        self.tableFeatures.setColumnCount(self.NcolsTable(self.desired_labels))
+        self.tableFeatures.setRowCount(self.NrowsTable(self.match)+1)  
       
-        ## Escrever os cabeçarios:        
-        for uu in range(self.NcolsTable(desired_labels)):
-            self.tableFeatures.setItem(0,uu, QTableWidgetItem(desired_labels[uu]))
+        ## Write the headers:        
+        for uu in range(self.NcolsTable(self.desired_labels)):
+            self.tableFeatures.setItem(0,uu, QTableWidgetItem(self.desired_labels[uu]))
         
-         ## Escrever o resto:        
-        for uu in range(self.NcolsTable(desired_labels)):           
-            for vv in range(len(match[uu])):
-                self.tableFeatures.setItem(vv+1,uu, QTableWidgetItem(match[uu][vv]))
+         ## Write the rest:        
+        for uu in range(self.NcolsTable(self.desired_labels)):           
+            for vv in range(len(self.match[uu])):
+                self.tableFeatures.setItem(vv+1,uu, QTableWidgetItem(self.match[uu][vv]))
                             
-        ############################# IMPORTANT ####################################
+
           
         self.selectFeatButton = QtWidgets.QPushButton(featureWindow)
         self.selectFeatButton.setGeometry(QtCore.QRect(770, 340, 81, 22))
         self.selectFeatButton.setObjectName("selectFeatButton")
-        
-        self.functions()
          
         self.feat_window_label = QtWidgets.QLabel(featureWindow)
         self.feat_window_label.setGeometry(QtCore.QRect(350, 10, 191, 20))
         self.feat_window_label.setObjectName("feat_window_label")
+        
+        
+        self.window = featureWindow
+        self.functions()
+        
  
         self.retranslateUi(featureWindow)
         QtCore.QMetaObject.connectSlotsByName(featureWindow)
@@ -77,12 +80,12 @@ class Ui_featureWindow(object):
         self.selectFeatButton.setText(_translate("featureWindow", "Select"))
         self.feat_window_label.setText(_translate("featureWindow", "Select the desired features: "))
          
-        
-        #####################################################
+    # Define the number of columns in the window feature table            
     # WARNING: This function edits/uses global variables: desired_labels   
     def NcolsTable(self,desired_labels):
         return len(desired_labels)
-        
+    
+    # Define the number of rows in the window feature table                
     # WARNING: This function edits/uses global variables: match
     def NrowsTable(self,match):
         return len(max(match,key=len)) 
@@ -90,7 +93,8 @@ class Ui_featureWindow(object):
     def functions(self):
         self.selectFeatButton.clicked.connect(self.selectData)
         self.selectFeatButton.clicked.connect(self.dataFromSelectedFeatures)
-        
+    
+    # Select the features using ctrl + mouse click
     # WARNING: This function edits/uses global variables: selectedFeatures            
     def selectData(self):
         global selectedFeatures
@@ -98,27 +102,60 @@ class Ui_featureWindow(object):
         selectedFeatures=[None]*len(items) 
         for i in range(len(items)):
             selectedFeatures[i] = str(self.tableFeatures.selectedItems()[i].text())
-            
-#        print(selectedFeatures)
+        
+        # Select Unique Features even though the user selected repeated ones
+        selectedFeatures = list(set(selectedFeatures))
         return selectedFeatures
     
-     # WARNING: This function edits/uses global variables: selectedFeatures
+    # Filters the original data using the features of interest
+    # WARNING: This function edits/uses global variables: selectedFeatures
     def dataFromSelectedFeatures(self):
-        global DataSet  
-        DataSet = DataSet.loc[:,selectedFeatures]
-        print(DataSet)
         
-        return(DataSet)
+        if self.confirmationSelectFeatures():
+        
+            global NewDataSet  
+            NewDataSet = DataSet.loc[:,selectedFeatures]
+
+        ui.setStatus("Ready!")
+        self.window.close()
     
- ################## GUilherme End #################################### GUilherme End ##################
+    # Find the matches of the input desired features
+    # WARNING: This function edits/uses global variables: fileCSVName, DataSet
+    def check_matches(self):
+        global DataSet, fileCSVName
+        self.desired_labels = str(self.lineDesiredFeatures)              
+        self.desired_labels = treat_dialog_text(self.desired_labels)
+                
+        DataSet = pd.read_csv(fileCSVName,low_memory=False)
+        possible_labels = list(DataSet.columns)
+        
+        self.match = [None]*len(self.desired_labels)  
+         
+        for idx in range(len(self.desired_labels)):
+            input_label = self.desired_labels[idx]      
+            self.match[idx] = get_corresponding_labels(input_label,possible_labels)
+    
+    # Display massage box of confirmation        
+    def confirmationSelectFeatures(self):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Information)
+    
+        msg.setText("Sure?")
+        msg.setWindowTitle("Confirmation Box")
+        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+    	
+        retval = msg.exec_()
+        
+        if retval == 1024:
+            return True
+        else:
+            return False
 
-
-fileTempNames = []
-fileCSVName = None
-flagFileLoaded = False
-flagTempFiles = False
+    
+######################################### Features Window END  ########################################
  
-# From Web Window
+    
+######################################### Web Window ########################################
 class Ui_FromWebWindow(object):
     def setupUi(self, FromWebWindow):
         FromWebWindow.setObjectName("FromWebWindow")
@@ -156,7 +193,7 @@ class Ui_FromWebWindow(object):
         self.retranslateUi(FromWebWindow)
         QtCore.QMetaObject.connectSlotsByName(FromWebWindow)
         
-        self.d = FromWebWindow
+        self.window = FromWebWindow
         self.functions()
         
     def retranslateUi(self, FromWebWindow):
@@ -245,7 +282,7 @@ class Ui_FromWebWindow(object):
                 
                 ui.fileLoaded()
                 self.sa.close()
-                self.d.close()
+                self.window.close()
     
     # Open a confirmation box and return its value
     def confirmationFromWebWindow(self):
@@ -266,8 +303,11 @@ class Ui_FromWebWindow(object):
     def setStatus(self, status):
         self.statusBar.showMessage(status)
 
-    
-# Main Window
+######################################### Web Window End ########################################
+
+
+######################################### Main Window ########################################
+  
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
@@ -372,12 +412,9 @@ class Ui_MainWindow(object):
         self.setStatus("Welcome!")
         self.fileNames = []
         self.buttonBrowse.clicked.connect(self.buttonBrowsePressed)
+        self.buttonCheckFeatures.clicked.connect(self.openFeatureWindow)
+        self.buttonRun.clicked.connect(self.runMissingData)
         
-        ################## GUilherme################## GUilherme
-        self.buttonCheckFeatures.clicked.connect(self.check_matches)
-        self.buttonCheckFeatures.clicked.connect(self.openFromfeatureWindow)
-        ################## GUilherme################## GUilherme
-    
     # Action when Browse (...) is pressed
     def buttonBrowsePressed(self):
         if(self.comboBoxSelectSource.currentText() == "From System"):
@@ -392,15 +429,25 @@ class Ui_MainWindow(object):
         self.ui.setupUi(self.window)
         self.window.show()
         
-        ################## GUilherme################## GUilherme
-    def openFromfeatureWindow(self):
+     # Open Feature Window   
+    def openFeatureWindow(self):
+        self.setStatus("Checking...")
         self.window2 = QtWidgets.QMainWindow()
         self.ui = Ui_featureWindow()
-        self.ui.setupUi(self.window2)
+        self.ui.setupUi(self.window2, self.lineDesiredFeatures.text())
         self.window2.show()
-
-        ################## GUilherme################## GUilherme
         
+    def runMissingData(self):        
+        global DataSetDealt
+        self.setStatus("Running Missing Data Option ...")
+        options = str(self.comboBoxMissingData.currentText())        
+        DataSetDealt = deal_missing_data(NewDataSet, options)
+        NoExtensionFilename = os.path.splitext(fileCSVName)[0]
+        DataSetDealt.to_csv(NoExtensionFilename + '_DataSetDealt.csv')
+        self.setStatus("DataSet was saved, check your current workspace.")
+        
+        return(DataSetDealt)
+
     
     # Open a file dialog and load file
     # WARNING: This function edits/uses global variables: fileCSVName
@@ -419,73 +466,10 @@ class Ui_MainWindow(object):
         fileName, _ = QFileDialog.getSaveFileName(None, "QFileDialog.getSaveFileName()","","All Files (*);;Text Files (*.txt)", options=options)
         if fileName:
             print(fileName)
+            
+            
         
-############################# GUilherme #################################### GUilherme ##################
-# WARNING: This function edits/uses global variables: fileCSVName, desired_labels, match
-    def check_matches(self):
-        global desired_labels, match, DataSet
-        desired_labels = str(self.lineDesiredFeatures.text())              
-        desired_labels = treat_dialog_text(desired_labels)
-        
-        DataSet = pd.read_csv(fileCSVName)
-        possible_labels = list(DataSet.columns)
-        
-#        possible_labels = ['PTAU_UPENNBIOMK9_04_19_17','TAU_UPENNBIOMK9_04_19_17','RID_UPENNBIOMK9_04_19_17','ABETA_UPENNBIOMK9_04_19_17']
-        match =[None]*len(desired_labels)  
-         
-        for idx in range(len(desired_labels)):
-            input_label = desired_labels[idx]      
-            match[idx] = get_corresponding_labels(input_label,possible_labels)
-        print(match)
-
-        return (desired_labels,match)
-    
-
-        
-#        def 
-        
-        
-        
-        #####
-#         def buttonConfirmDownloadPressed(self):
-#        selected_data = self.listData.currentItem()
-#        
-#        if selected_data != None:
-#            selected_data = selected_data.text()
-#            if self.confirmationFromWebWindow() == True:
-#                self.setStatus("Downloading...")
-#                x = os.getcwd() + "/"
-#                x += self.sa.getData(self.data_dict[selected_data], selected_data)
-#                
-#                global flagTempFiles
-#                flagTempFiles = True
-#                
-#                global fileTempNames
-#                fileTempNames.append(str(x))
-#                
-#                global fileCSVName
-#                fileCSVName = str(x)
-#                
-#                ui.fileLoaded()
-#                self.sa.close()
-#                self.d.close()
-#    
-#    # Open a confirmation box and return its value
-#    def confirmationFromWebWindow(self):
-#        msg = QMessageBox()
-#        msg.setIcon(QMessageBox.Information)
-#    
-#        msg.setText("Sure?")
-#        msg.setWindowTitle("Confirmation Box")
-#        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
-#    	
-#        retval = msg.exec_()
-#        
-#        if retval == 1024:
-#            return True
-#        else:
-#            return False
-################## GUilherme End ################## GUilherme End ################## GUilherme End 
+######################################### Main Window END ########################################
     
     # Enable options/buttons on main window 
     # WARNING: This function edits/uses global variables: flagFileLoaded

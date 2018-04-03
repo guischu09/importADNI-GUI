@@ -17,12 +17,14 @@ Created on Tue Mar 20 15:04:59 2018
  
 import numpy as np
 from fuzzywuzzy import fuzz
+from fancyimpute import BiScaler, KNN, NuclearNormMinimization, SoftImpute
+
  
 #################### --- Treat string dialog text --- #####################
 def treat_dialog_text(input_string):
  
     input_string = input_string.lower()
-    special_characters1 = set('[~!@#$%^&*() ,_+{}":;\']+$').intersection(input_string)
+    special_characters1 = set('[~!@#$%^&*() ,+{}":;\']+$').intersection(input_string)
                  
     if not len(list(special_characters1)) == 0:
         for jj in list(special_characters1):
@@ -107,16 +109,49 @@ def get_corresponding_labels(input_label,possible_labels):
 #################### --- Deal with Missing Data --- ####################
  
 #--> Must do: Add imputation methods: KNN, MICE: fancy inpute package
-def deal_missing_data(DataSet):
-#       
-    DataSet = DataSet.replace('-4',np.NaN)
-    DataSet = DataSet.replace(' ',np.NaN)
-    NewDataSet = DataSet.dropna(axis = 'rows',how = 'any')
-             
-    return NewDataSet
+#def deal_missing_data(NewDataSet, options):
+#    
+#    if options == "Remove All":    
+#        DataSet = NewDataSet.replace('-4',np.NaN)
+#        DataSet = NewDataSet.replace(' ',np.NaN)
+#        DataSetDealt = NewDataSet.dropna(axis = 'rows',how = 'any')
+#             
+#    return DataSetDealt
  
-#################### --- END--- ####################
- 
+#
      
-     
+class switch(object):
+    value = None
+    def __new__(class_, value):
+        class_.value = value
+        return True
+
+def case(*args):
+    return any((arg == switch.value for arg in args))
+
+
+
+def deal_missing_data(NewDataSet, options):
     
+   while switch(options):
+       if case('None'):
+           DataSetDealt = NewDataSet
+           
+       if case('Remove All'):
+           NewDataSet = NewDataSet.replace('-4',np.NaN)
+           NewDataSet = NewDataSet.replace(' ',np.NaN)
+           DataSetDealt = NewDataSet.dropna(axis = 'rows',how = 'any') 
+           
+       if case('Impute with KNN'):
+           NewDataSet = NewDataSet.replace('-4',np.NaN)
+           NewDataSet = NewDataSet.replace(' ',np.NaN)
+           DataSetDealt = KNN(k=7).complete(NewDataSet)
+           
+       if case('Impute with MICE'):
+           DataSetDealt = NuclearNormMinimization().complete(NewDataSet)
+       break
+       
+   return DataSetDealt       
+     
+#################### --- END--- ####################
+
