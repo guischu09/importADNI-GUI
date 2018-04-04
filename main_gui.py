@@ -116,7 +116,7 @@ class Ui_featureWindow(object):
             global NewDataSet  
             NewDataSet = DataSet.loc[:,selectedFeatures]
 
-        ui.setStatus("Ready!")
+        ui.setStatus("Features Selected!")
         self.window.close()
     
     # Find the matches of the input desired features
@@ -440,10 +440,11 @@ class Ui_MainWindow(object):
     def runMissingData(self):        
         global DataSetDealt
         self.setStatus("Running Missing Data Option ...")
-        options = str(self.comboBoxMissingData.currentText())        
-        DataSetDealt = deal_missing_data(NewDataSet, options)
+        options = str(self.comboBoxMissingData.currentText())          
+        DataSetDealt = pd.DataFrame(deal_missing_data(NewDataSet, options, selectedFeatures))
+        optname = options.replace(" ", "")        
         NoExtensionFilename = os.path.splitext(fileCSVName)[0]
-        DataSetDealt.to_csv(NoExtensionFilename + '_DataSetDealt.csv')
+        DataSetDealt.to_csv(NoExtensionFilename + '_filter-' + optname.strip() + '.csv',index=False)
         self.setStatus("DataSet was saved, check your current workspace.")
         
         return(DataSetDealt)
@@ -467,9 +468,6 @@ class Ui_MainWindow(object):
         if fileName:
             print(fileName)
             
-            
-        
-######################################### Main Window END ########################################
     
     # Enable options/buttons on main window 
     # WARNING: This function edits/uses global variables: flagFileLoaded
@@ -508,6 +506,9 @@ class Ui_MainWindow(object):
             self.deleteFiles()
         
         sys.exit(0)
+        
+######################################### Main Window END ########################################
+
 
 if __name__ == "__main__":
     app = QCoreApplication.instance()

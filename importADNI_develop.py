@@ -18,6 +18,7 @@ Created on Tue Mar 20 15:04:59 2018
 import numpy as np
 from fuzzywuzzy import fuzz
 from fancyimpute import BiScaler, KNN, NuclearNormMinimization, SoftImpute
+import pandas as pd
 
  
 #################### --- Treat string dialog text --- #####################
@@ -79,8 +80,6 @@ def get_corresponding_labels(input_label,possible_labels):
         match[i] = np.max(temp_match)
      
      
-    #######################################
-     
     # indices of the best matches:
     multiple_matches = np.where(match == np.max(match))
     # Get the array of indices itself
@@ -103,23 +102,81 @@ def get_corresponding_labels(input_label,possible_labels):
 #    return (final_match,final_match_index)
     return (final_match)
  
-#################### --- END--- ####################
+#################### --- get_corresponding_labels END--- ####################
      
  
 #################### --- Deal with Missing Data --- ####################
- 
-#--> Must do: Add imputation methods: KNN, MICE: fancy inpute package
+# Change The name of the local variable that are equal to the global variables
+# There are still some bugs with KNN to deal with....    
+
+def deal_missing_data(NewDataSet, options,selectedFeatures):
+    
+   while switch(options):
+       if case('None'):
+           DataSetDealt = NewDataSet
+           
+       if case('Remove All'):
+           NewDataSet = NewDataSet.replace('-4',np.NaN)
+           NewDataSet = NewDataSet.replace(' ',np.NaN)
+           NewDataSet = NewDataSet.dropna(axis = 'rows',how = 'any')
+           DataSetDealt = fixBrokenDataSet(NewDataSet,'Default')
+           
+       if case('Impute with KNN'):
+           NewDataSet = NewDataSet.replace('-4',np.NaN)
+           NewDataSet = NewDataSet.replace(' ',np.NaN)
+           NewDataSet = fixBrokenDataSet(NewDataSet,'TurnNaN')
+           NewDataSet = KNN(k=7).complete(NewDataSet)
+           DataSetDealt = pd.DataFrame(NewDataSet,columns = selectedFeatures)
+           
+       if case('Impute with MICE'):
+           NewDataSet = NewDataSet.replace('-4',np.NaN)
+           NewDataSet = NewDataSet.replace(' ',np.NaN)
+           NewDataSet = fixBrokenDataSet(NewDataSet,'TurnNaN')           
+           DataSetDealt = NuclearNormMinimization().complete(NewDataSet)
+           DataSetDealt = pd.DataFrame(NewDataSet,columns = selectedFeatures)
+       break
+       
+   return DataSetDealt       
+     
+#################### --- Deal with Missing Data END--- ###################
+    
+
+#################### --- Deal with Missing Data --- ####################
+
 #def deal_missing_data(NewDataSet, options):
 #    
-#    if options == "Remove All":    
-#        DataSet = NewDataSet.replace('-4',np.NaN)
-#        DataSet = NewDataSet.replace(' ',np.NaN)
-#        DataSetDealt = NewDataSet.dropna(axis = 'rows',how = 'any')
-#             
-#    return DataSetDealt
- 
-#
+#   while switch(options):
+#       if case('None'):
+#           DataSetDealt = NewDataSet
+#           
+#       if case('Remove All'):
+#           NewDataSet = NewDataSet.replace('-4',np.NaN)
+#           NewDataSet = NewDataSet.replace(' ',np.NaN)
+#           NewDataSet = NewDataSet.dropna(axis = 'rows',how = 'any')
+#           DataSetDealt = fixBrokenDataSet(NewDataSet,'Default')
+#           
+#       if case('Impute with KNN'):
+#           NewDataSet = NewDataSet.replace('-4',np.NaN)
+#           NewDataSet = NewDataSet.replace(' ',np.NaN)
+#           NewDataSet = fixBrokenDataSet(NewDataSet,'Default')
+#           DataSetDealt = KNN(k=7).complete(NewDataSet)
+#           
+#       if case('Impute with MICE'):
+#           NewDataSet = NewDataSet.replace('-4',np.NaN)
+#           NewDataSet = NewDataSet.replace(' ',np.NaN)
+#           NewDataSet = fixBrokenDataSet(NewDataSet,'Default')           
+#           DataSetDealt = NuclearNormMinimization().complete(NewDataSet)
+#       break
+#       
+#   return DataSetDealt       
      
+#################### --- Deal with Missing Data END--- ####################
+
+
+#################### --- Switch Case implementation --- ####################
+
+
+
 class switch(object):
     value = None
     def __new__(class_, value):
@@ -129,29 +186,75 @@ class switch(object):
 def case(*args):
     return any((arg == switch.value for arg in args))
 
+#################### --- Switch Case implementation END --- ####################
 
 
-def deal_missing_data(NewDataSet, options):
+#################### --- SfixBrokenDataSet --- ####################
+
+# This function should be applied only for numeric pre filtered data
+def fixBrokenDataSet(DataSet,*args):    
+    for option in args:
+        while switch(option):
+            if case('TurnNaN'):
+                # Find the rows that have crazy simbols and make them NaN
+                [rows, cols] = DataSet.shape
+                
+                NumeriColumns = FindNumeriCols(DataSet)
+        
+                for uu in range(rows):    
+                    single_row = DataSet.iloc[uu, NumeriColumns]
+                    
+                    try:
+                        single_row.astype(np.float)        
+                    except ValueError:
+                        DataSet.iloc[uu,:] = np.NaN
+                
+                return (DataSet)
+                
+                
+            if case('Default'):
+            # Remove the rows that have crazy simbols
+                [rows, cols] = DataSet.shape
+                
+                NumeriColumns = FindNumeriCols(DataSet)
+        
+                for uu in range(rows):    
+                    single_row = DataSet.iloc[uu, NumeriColumns]
+                    
+                    try:
+                        single_row.astype(np.float)        
+                    except ValueError:
+                        DataSet.iloc[uu,:] = np.NaN
+                
+                DataSet = DataSet.dropna(axis = 'rows',how = 'any') 
+                return (DataSet)
+            break  
+        
+#################### --- SfixBrokenDataSet END --- ####################
+
+
+#################### --- FindNumeriCols --- ####################
+
+def FindNumeriCols(DataSet):
     
-   while switch(options):
-       if case('None'):
-           DataSetDealt = NewDataSet
-           
-       if case('Remove All'):
-           NewDataSet = NewDataSet.replace('-4',np.NaN)
-           NewDataSet = NewDataSet.replace(' ',np.NaN)
-           DataSetDealt = NewDataSet.dropna(axis = 'rows',how = 'any') 
-           
-       if case('Impute with KNN'):
-           NewDataSet = NewDataSet.replace('-4',np.NaN)
-           NewDataSet = NewDataSet.replace(' ',np.NaN)
-           DataSetDealt = KNN(k=7).complete(NewDataSet)
-           
-       if case('Impute with MICE'):
-           DataSetDealt = NuclearNormMinimization().complete(NewDataSet)
-       break
-       
-   return DataSetDealt       
-     
-#################### --- END--- ####################
+    [rows, cols] = DataSet.shape
+    
+    N = 20 # This is an arbitrary choice
+    cont = np.zeros(cols)
+    
+    for jj in range(cols):
+        for uu in range(N):
+            
+            single_element = DataSet.iloc[uu,jj]
+            
+            try:
+                float(single_element)
+                cont[jj] = cont[jj] + 1
+                        
+            except ValueError:
+                continue               
+                
+    NumeriColumns = cont > 4 # This is an arbitrary choice
+    return (NumeriColumns)
 
+#################### --- FindNumeriCols END --- ####################
