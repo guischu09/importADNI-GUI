@@ -10,7 +10,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QAction, QTableWidget,QTableWidgetItem,QVBoxLayout
-from importADNI_develop import treat_dialog_text, get_corresponding_labels, deal_missing_data
+from importADNI_develop import *
 import pandas as pd
 from PyQt5.QtCore import QCoreApplication
 import menu as m
@@ -441,7 +441,7 @@ class Ui_MainWindow(object):
         global DataSetDealt
         self.setStatus("Running Missing Data Option ...")
         options = str(self.comboBoxMissingData.currentText())          
-        DataSetDealt = pd.DataFrame(deal_missing_data(NewDataSet, options, selectedFeatures))
+        DataSetDealt = pd.DataFrame(deal_missing_data(NewDataSet, options))
         optname = options.replace(" ", "")        
         NoExtensionFilename = os.path.splitext(fileCSVName)[0]
         DataSetDealt.to_csv(NoExtensionFilename + '_filter-' + optname.strip() + '.csv',index=False)

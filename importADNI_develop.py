@@ -109,7 +109,7 @@ def get_corresponding_labels(input_label,possible_labels):
 # Change The name of the local variable that are equal to the global variables
 # There are still some bugs with KNN to deal with....    
 
-def deal_missing_data(NewDataSet, options,selectedFeatures):
+def deal_missing_data(NewDataSet, options):
     
    while switch(options):
        if case('None'):
@@ -124,53 +124,23 @@ def deal_missing_data(NewDataSet, options,selectedFeatures):
        if case('Impute with KNN'):
            NewDataSet = NewDataSet.replace('-4',np.NaN)
            NewDataSet = NewDataSet.replace(' ',np.NaN)
-           NewDataSet = fixBrokenDataSet(NewDataSet,'TurnNaN')
-           NewDataSet = KNN(k=7).complete(NewDataSet)
-           DataSetDealt = pd.DataFrame(NewDataSet,columns = selectedFeatures)
+           NewDataSet,NumeriColumns = fixBrokenDataSet(NewDataSet,'TurnNaN')
+           imputedData = KNN(k=15).complete(NewDataSet.iloc[:,NumeriColumns])
+           NewDataSet.iloc[:,NumeriColumns] = imputedData
+           DataSetDealt = NewDataSet
            
        if case('Impute with MICE'):
            NewDataSet = NewDataSet.replace('-4',np.NaN)
            NewDataSet = NewDataSet.replace(' ',np.NaN)
-           NewDataSet = fixBrokenDataSet(NewDataSet,'TurnNaN')           
-           DataSetDealt = NuclearNormMinimization().complete(NewDataSet)
-           DataSetDealt = pd.DataFrame(NewDataSet,columns = selectedFeatures)
+           NewDataSet,NumeriColumns = fixBrokenDataSet(NewDataSet,'TurnNaN')           
+           imputedData = NuclearNormMinimization().complete(NewDataSet)
+           NewDataSet.iloc[:,NumeriColumns] = imputedData
+           DataSetDealt = NewDataSet
        break
        
    return DataSetDealt       
      
 #################### --- Deal with Missing Data END--- ###################
-    
-
-#################### --- Deal with Missing Data --- ####################
-
-#def deal_missing_data(NewDataSet, options):
-#    
-#   while switch(options):
-#       if case('None'):
-#           DataSetDealt = NewDataSet
-#           
-#       if case('Remove All'):
-#           NewDataSet = NewDataSet.replace('-4',np.NaN)
-#           NewDataSet = NewDataSet.replace(' ',np.NaN)
-#           NewDataSet = NewDataSet.dropna(axis = 'rows',how = 'any')
-#           DataSetDealt = fixBrokenDataSet(NewDataSet,'Default')
-#           
-#       if case('Impute with KNN'):
-#           NewDataSet = NewDataSet.replace('-4',np.NaN)
-#           NewDataSet = NewDataSet.replace(' ',np.NaN)
-#           NewDataSet = fixBrokenDataSet(NewDataSet,'Default')
-#           DataSetDealt = KNN(k=7).complete(NewDataSet)
-#           
-#       if case('Impute with MICE'):
-#           NewDataSet = NewDataSet.replace('-4',np.NaN)
-#           NewDataSet = NewDataSet.replace(' ',np.NaN)
-#           NewDataSet = fixBrokenDataSet(NewDataSet,'Default')           
-#           DataSetDealt = NuclearNormMinimization().complete(NewDataSet)
-#       break
-#       
-#   return DataSetDealt       
-     
-#################### --- Deal with Missing Data END--- ####################
 
 
 #################### --- Switch Case implementation --- ####################
@@ -209,7 +179,7 @@ def fixBrokenDataSet(DataSet,*args):
                     except ValueError:
                         DataSet.iloc[uu,:] = np.NaN
                 
-                return (DataSet)
+                return (DataSet,NumeriColumns)
                 
                 
             if case('Default'):
@@ -227,7 +197,7 @@ def fixBrokenDataSet(DataSet,*args):
                         DataSet.iloc[uu,:] = np.NaN
                 
                 DataSet = DataSet.dropna(axis = 'rows',how = 'any') 
-                return (DataSet)
+                return (DataSet,NumeriColumns)
             break  
         
 #################### --- SfixBrokenDataSet END --- ####################
@@ -239,7 +209,7 @@ def FindNumeriCols(DataSet):
     
     [rows, cols] = DataSet.shape
     
-    N = 20 # This is an arbitrary choice
+    N = 100 # This is an arbitrary choice
     cont = np.zeros(cols)
     
     for jj in range(cols):
@@ -254,7 +224,7 @@ def FindNumeriCols(DataSet):
             except ValueError:
                 continue               
                 
-    NumeriColumns = cont > 4 # This is an arbitrary choice
+    NumeriColumns = cont > 50 # This is an arbitrary choice
     return (NumeriColumns)
 
 #################### --- FindNumeriCols END --- ####################
